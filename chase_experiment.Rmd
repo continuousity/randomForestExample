@@ -1,0 +1,87 @@
+---
+title: "Chase_trial"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("mobsim")
+require("vegan")
+require("randomForest")
+```
+
+## R Markdown
+
+Exploring how all of this works.
+
+```{r}
+
+# Species abundances
+sad1 <- sim_sad(100, 2000, sad_type = "lnorm", sad_coef = list("meanlog" = 2, "sdlog" = 1))
+rc1 <- rare_curve(sad1)
+plot(rc1, type = "l", xlab = "Sample size", ylab = "Expected species richness")
+renyi(sad1)
+
+# Spatial distributions
+comm_rand <- sim_poisson_community(s_pool = 30, n_sim = 300)
+comm_agg <- sim_thomas_community(s_pool = 30, n_sim = 300, sigma = 0.05, mother_points = 1)
+par(mfrow = c(1,2))
+plot(comm_rand)
+plot(comm_agg)
+
+sar_rand <- divar(comm_rand)
+sar_agg <- divar(comm_agg)
+
+plot(m_species ~ prop_area, data = sar_rand, type = "b", log = "xy",
+     xlab = "Proportion of area sampled",ylab = "No. of species",
+     ylim = c(3,30))
+lines(m_species ~ prop_area, data = sar_agg, type = "b", col = 2)
+legend("bottomright", c("Random","Aggregated"), col = 1:2, lwd = 2)
+
+
+```
+
+Now let's try something dumb
+
+```{r}
+foo <- function(x) sim_sad(100, 2000, sad_type = "lnorm", sad_coef = list("meanlog" = 2, "sdlog" = 1))
+
+nrep <- 100
+res_lnorm<-matrix(ncol=11, nrow=nrep)
+mean_draw <- rlnorm(nrep, meanlog=log(2), sdlog=0.1)
+sd_draw <- rlnorm(nrep, meanlog=log(1), sdlog=0.1)
+
+for(i in 1:nrep) {
+  ss<-sim_sad(100, 2000, sad_type = "lnorm", sad_coef = list("meanlog" = mean_draw[i], "sdlog" = sd_draw[i]))
+  res_lnorm[i,]<-renyi(ss)
+}
+
+
+
+res_rls<-matrix(ncol=11, nrow=nrep)
+N_draw <- rlnorm(nrep, meanlog=log(100), sdlog=0.1)
+alpha_draw <- rlnorm(nrep, meanlog=log(100), sdlog=0.1)
+
+for(i in 1:nrep) {
+  ss<-sim_sad(s_pool=100, n_sim=2000, sad_type = "ls", sad_coef = list("N" = N_draw[i], "alpha" = alpha_draw[i]))
+  res_rls[i,]<-renyi(ss)
+}
+
+full<-rbind(res_lnorm, res_rls)
+model <- as.factor(rep(c("lnorm", "ls"), each=nrep))
+
+plot(full[1,], type="l", ylim=range(full), col="black", lwd=2)
+for(i in 2:100)
+  lines(full[i,], col="black", lwd=2)
+
+for(i in 101:200)
+  lines(full[i,], col="red", lwd=2)
+
+# random forests
+randomForest(full, model)
+
+```
+
+Neg binom and fisher log-series
+Set scale k to zero and they converge
+pica package on andy's github
