@@ -102,4 +102,4 @@ legend('topleft', legend = c('rare Renyi', 'default'), col = c('black', 'gray'),
        pch = 1, bty = 'n')
 ```
 
-We can see that focusing on rare species (or rather not focusing so much on the dominants) helps pin down the difference between the logseries (true parameter = 0) and also the value of the true parameter when $k$ is small in the negative binomial.  But the results are effectively equivilant for larger values of $k$.
+We can see that focusing on rare species (or rather not focusing so much on the dominants) helps pin down the difference between the logseries (true parameter = 0) and also the value of the true parameter when $k$ is small in the negative binomial.  But the results are effectively equivalent for larger values of $k$.
