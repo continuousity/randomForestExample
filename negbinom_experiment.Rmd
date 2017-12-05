@@ -1,0 +1,105 @@
+---
+title: "Fitting logseries and negative binomial SADs with random forests"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require('vegan')
+require('randomForest')
+foo1 <- require('mobsim')
+foo2 <- require('pika')
+
+if(!foo1) {
+    install.packages('mobsim')
+    library('mobsim')
+}
+
+if(!foo2) {
+    devtools::install_github('ajrominger/pika')
+    library('pika')
+}
+```
+
+## Infering the scale of a truncated negative binomial
+
+The zero-truncated negative binomial can be parameterized to represent most all log-normal distributions (given finite data) and in the limit of $k = 0$ is exactly Fisher's log-series.  So it's a good distribution to see if we can properly parameterize with random forests.
+
+### Species abundances simulated using pika package
+
+```{r}
+# parameters for the negative binomial
+mu <- 10
+k <- seq(1, 6, length.out = 6)
+
+# parameters for the log-series maintaining the mean
+p <- uniroot(function(p) -1/log(1 - p) * p / (1 - p) - mu, 
+             c(.Machine$double.eps, 1 - .Machine$double.eps))$root
+b <- -log(p)
+
+# simulation parameters
+nsim <- 100
+nspp <- 500
+
+# simulate negative binomial SADs
+negbSAD <- rtnegb(nsim * nspp * length(k), mu = mu, k = rep(k, each = nsim * nspp))
+negbSAD <- split(negbSAD, rep(1:(nsim * length(k)), each = nspp))
+param <- rep(k, each = nsim)
+
+# add to that fisher SADs
+fishSAD <- rfish(nsim * nspp, beta = b)
+fishSAD <- split(fishSAD, rep(1:nsim, each = nspp))
+
+allSAD <- c(negbSAD, fishSAD)
+allParam <- c(param, rep(0, nsim))
+```
+
+
+### Random forest fitting
+
+First let's make sure the RF won't just be picking up something simple like a spurious difference in means.
+
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+plot(density(sapply(negbSAD, mean)), xlim = range(sapply(allSAD, mean)), 
+     xlab = 'mean of sim data', main = '')
+lines(density(sapply(fishSAD, mean)), col = 'red')
+legend('topright', legend = c('n binom', 'logseries'), 
+       col = c('black', 'red'), lty = 1, bty = 'n')
+```
+
+The means of means are close for each distribution, but logseries has more variability in means across simulations.  I think that's ok.
+
+Now on to the fitting with RF based on Renyi entropy
+
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+# summary statistic of Renyi entropies
+sumStat <- t(sapply(allSAD, renyi))
+
+# run the random forest
+rf <- randomForest(sumStat, allParam)
+
+# see how well prediction works
+plot(allParam, rf$predicted, xlab = 'True parameter', ylab = 'Predicted parameter')
+abline(0, 1, col = 'red')
+```
+
+The prediction looks pretty good!
+
+I'm curious to see if using different weights in the Renyi entropy makes a difference.  For example, paying more attention to rare species
+
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+sumStat <- t(sapply(allSAD, renyi, scales = c(0, 2^(-6:2), Inf)))
+
+# run the random forest
+rfRare <- randomForest(sumStat, allParam)
+
+# see how well prediction works
+plot(allParam - 0.025, rf$predicted, xlab = 'True parameter', ylab = 'Predicted parameter', 
+     col = 'gray')
+points(allParam + 0.025, rfRare$predicted)
+abline(0, 1, col = 'red')
+legend('topleft', legend = c('rare Renyi', 'default'), col = c('black', 'gray'), 
+       pch = 1, bty = 'n')
+```
+
+We can see that focusing on rare species (or rather not focusing so much on the dominants) helps pin down the difference between the logseries (true parameter = 0) and also the value of the true parameter when $k$ is small in the negative binomial.  But the results are effectively equivilant for larger values of $k$.
