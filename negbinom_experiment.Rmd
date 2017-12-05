@@ -94,12 +94,29 @@ sumStat <- t(sapply(allSAD, renyi, scales = c(0, 2^(-6:2), Inf)))
 rfRare <- randomForest(sumStat, allParam)
 
 # see how well prediction works
-plot(allParam - 0.025, rf$predicted, xlab = 'True parameter', ylab = 'Predicted parameter', 
+plot(allParam - 0.05, rf$predicted, xlab = 'True parameter', ylab = 'Predicted parameter', 
      col = 'gray')
-points(allParam + 0.025, rfRare$predicted)
+points(allParam + 0.05, rfRare$predicted)
 abline(0, 1, col = 'red')
 legend('topleft', legend = c('rare Renyi', 'default'), col = c('black', 'gray'), 
        pch = 1, bty = 'n')
 ```
 
 We can see that focusing on rare species (or rather not focusing so much on the dominants) helps pin down the difference between the logseries (true parameter = 0) and also the value of the true parameter when $k$ is small in the negative binomial.  But the results are effectively equivalent for larger values of $k$.
+
+For negative binomial we can also see if the RF does any better or worse than maximum likelihood
+
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+# maximum likelihood estimation with *pika*
+mle <- sapply(allSAD, function(x) {sad(x, 'tnegb')$MLE[2]})
+
+plot(allParam - 0.05, rfRare$predicted, xlab = 'True parameter', 
+     ylab = 'Predicted parameter', col = 'gray', 
+     ylim = range(mle, rfRare$predicted))
+points(allParam + 0.05, mle)
+abline(0, 1, col = 'red')
+legend('topleft', legend = c('MLE', 'rare Renyi'), col = c('black', 'gray'), 
+       pch = 1, bty = 'n')
+```
+
+So my take home is that RF on rare Renyi is better for negative binomial when $k$ is small, but is a less consistent estimator (i.e. the mean of the inferred parameter can be off) than ML.  That makes sense, ML is provably least biased for $n$ approaching infinity.  But maybe with more Renyi entropies RF would do just as good.
