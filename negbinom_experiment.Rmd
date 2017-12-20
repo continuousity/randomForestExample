@@ -1,12 +1,12 @@
 ---
 title: "Fitting logseries and negative binomial SADs with random forests"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-require('vegan')
-require('randomForest')
+library('vegan')
+library('randomForest')
 foo1 <- require('mobsim')
 foo2 <- require('pika')
 
