@@ -106,7 +106,7 @@ We can see that focusing on rare species (or rather not focusing so much on the 
 
 For negative binomial we can also see if the RF does any better or worse than maximum likelihood
 
-```{r, fig.width=4, fig.height=4, fig.align='center'}
+```{r, fig.width=4, fig.height=4, fig.align='center', cache=TRUE}
 # maximum likelihood estimation with *pika*
 mle <- sapply(allSAD, function(x) {sad(x, 'tnegb')$MLE[2]})
 
